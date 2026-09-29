@@ -28,7 +28,7 @@
 > - **Windows hardening**: symlinks and non-regular files are rejected through an explicit `lstat` check in both the reducer archive and ObservationPack, because `O_NOFOLLOW` is ignored on Windows. Three upstream tests that only passed on POSIX (`0600` mode, symlink `ELOOP`, `npm pack` through `spawnSync`) and one path-separator assertion are fixed.
 > - **Any reducer route works.** The default stays `openai-codex`/`gpt-5.6-luna`; set `evidencePreservingReducerProvider`/`Model` to any provider Pi can resolve.
 >
-> The full suite passes on Pi 0.87.1 on Windows as well as on the pinned 0.85.1.
+> Development is pinned to Pi 0.87.1; the full suite also passes on 0.85.1.
 
 ## 💡 TL;DR
 
@@ -76,14 +76,14 @@ Read our paper: [SoL-Pi: Recursively Scaling Auto-Research Loops for Efficient A
 
 - Node.js 22.19 or newer
 - npm
-- `@earendil-works/pi-coding-agent` 0.85.1
+- `@earendil-works/pi-coding-agent` 0.87.1 (0.85.1 remains supported)
 
 ### Install
 
 Install the tested Pi release:
 
 ```bash
-npm install --global @earendil-works/pi-coding-agent@0.85.1
+npm install --global @earendil-works/pi-coding-agent@0.87.1
 ```
 
 Then install SoL-Pi directly from [NVlabs/SoL-Pi](https://github.com/NVlabs/SoL-Pi):
@@ -187,7 +187,7 @@ npm audit --audit-level=high
 node scripts/check-pi-compat.mjs
 ```
 
-`npm run check` covers TypeScript, the complete test suite, and package inspection. The development dependency set is pinned to Pi 0.85.1; runtime Pi packages remain peer dependencies so Pi owns their installation and upgrades.
+`npm run check` covers TypeScript, the complete test suite, and package inspection. The development dependency set is pinned to Pi 0.87.1 (the suite also passes on 0.85.1); runtime Pi packages remain peer dependencies so Pi owns their installation and upgrades.
 
 ## Project Status
 
