@@ -14,6 +14,7 @@ export function registerConfiguredFeatures(pi: ExtensionAPI, config: SolPiConfig
 	if (config.actionFusion) registerActionFusion(pi);
 	if (config.observationPack) registerObservationPack(pi);
 	if (config.evidencePreservingReducer) {
+		// Fork change: evidencePreservingReducerOptions wins over the two dedicated route keys.
 		registerEvidencePreservingReducer(pi, {
 			...config.evidencePreservingReducerOptions,
 			reducerProvider:

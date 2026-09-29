@@ -28,7 +28,7 @@
 > - **Windows hardening**: symlinks and non-regular files are rejected through an explicit `lstat` check in both the reducer archive and ObservationPack, because `O_NOFOLLOW` is ignored on Windows. Three upstream tests that only passed on POSIX (`0600` mode, symlink `ELOOP`, `npm pack` through `spawnSync`) and one path-separator assertion are fixed.
 > - **Any reducer route works.** The default stays `openai-codex`/`gpt-5.6-luna`; set `evidencePreservingReducerProvider`/`Model` to any provider Pi can resolve.
 >
-> Development is pinned to Pi 0.87.1; the full suite also passes on 0.85.1. The fork keeps up with the latest Pi release that passes its checks. See [Pi version policy](docs/pi-version-policy.md).
+> Development is pinned to Pi 0.87.1; the full suite also passes on 0.85.1. The fork keeps up with the latest Pi release that passes its checks and follows upstream SoL-Pi as closely as its own changes allow. See [Pi version policy](docs/pi-version-policy.md) and [Upstream sync policy](docs/upstream-sync-policy.md).
 
 ## 💡 TL;DR
 
