@@ -22,7 +22,7 @@ const READ_OBJECT_FLAGS = constants.O_RDONLY | constants.O_NOFOLLOW;
 const CREATE_OBJECT_FLAGS = constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW;
 
 /**
- * O_NOFOLLOW is ignored on Windows, so an explicit lstat check is what actually
+ * Fork addition: O_NOFOLLOW is ignored on Windows, so an explicit lstat check is what actually
  * keeps a planted symlink from redirecting an archive write or a recall read.
  * The ELOOP code keeps the failure indistinguishable from the POSIX one.
  */

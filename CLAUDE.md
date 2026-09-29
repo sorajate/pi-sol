@@ -7,3 +7,7 @@ The imported protocol is mandatory for every SoL-Pi install, build, configuratio
 @docs/pi-version-policy.md
 
 This fork keeps up with the latest Pi release that passes its checks; follow the imported policy before changing any Pi version pin.
+
+@docs/upstream-sync-policy.md
+
+This fork follows NVlabs/SoL-Pi as closely as possible while keeping its own behavior first; follow the imported sync policy before merging upstream changes.

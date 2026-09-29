@@ -16,6 +16,7 @@ const DEFAULT_CACHE_WRITE_READ_RATIO = 12.5;
 const DEFAULT_EPR_REDUCER_PROVIDER = ["openai", "codex"].join("-");
 const DEFAULT_EPR_REDUCER_MODEL = ["gpt-5.6", "luna"].join("-");
 const STRING_KEYS = ["evidencePreservingReducerModel", "evidencePreservingReducerProvider"];
+// Fork addition: tunable reducer options object.
 const REDUCER_OPTIONS_KEY = "evidencePreservingReducerOptions";
 const CONFIG_KEYS = new Set([
 	"version",
