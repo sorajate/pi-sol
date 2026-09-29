@@ -320,6 +320,31 @@ describe("evidence-preserving reducer orchestration", () => {
 		expect(run.state.inFlight).toBe(0);
 	});
 
+	it("verifies quotes against an LF projection of a CRLF log and archives the exact bytes", async () => {
+		// Regression from a live run: dotnet on Windows emits CRLF and the reducer quoted with LF.
+		const crlf = dotnetLog().replace(/\n/gu, "\r\n");
+		const run = await harness({}, {
+			respond: (body, hash) =>
+				receiptFor(body, hash, {
+					evidence: [
+						{ kind: "failure", quote: "  Failed   App.Tests.ParserTests.Throws_on_empty_input [12 ms]" },
+						{ kind: "summary", quote: "  [noise] restoring package 0 ... ok\n  [noise] restoring package 1 ... ok" },
+					],
+				}),
+		});
+		const result = await reduceToolResult(run.state, bashEvent("dotnet test", crlf), run.context);
+		expect(result).toBeTruthy();
+		expect(run.calls[0]?.userText).not.toContain("\r");
+		const archived = await readFile(String(detailsOf(result!).sourceArtifact), "utf8");
+		expect(archived).toBe(crlf);
+	});
+
+	it("asks the reducer for single-line quotes", async () => {
+		const run = await harness();
+		await reduceToolResult(run.state, bashEvent("dotnet test", dotnetLog()), run.context);
+		expect(run.calls[0]?.systemPrompt).toMatch(/single log line: never join lines/u);
+	});
+
 	it("archives under the session-derived store root only", async () => {
 		const run = await harness();
 		const first = await reduceToolResult(run.state, bashEvent("dotnet test", dotnetLog()), run.context);

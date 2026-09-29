@@ -12,7 +12,7 @@
 		"excludeCommands": [],
 		"minBytes": 4096,
 		"maxChars": 600000,
-		"maxOutputTokens": 2048,
+		"maxOutputTokens": 8192,
 		"timeoutMs": 90000,
 		"maxEvidenceItems": 12,
 		"maxQuoteChars": 600,

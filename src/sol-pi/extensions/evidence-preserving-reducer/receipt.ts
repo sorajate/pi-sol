@@ -71,6 +71,9 @@ export function reducerInstructions(limits: ReceiptLimits): string {
 		`schema must equal ${REDUCER_RECEIPT_SCHEMA}.`,
 		"status must be success when is_error=false and failure when is_error=true.",
 		"evidence must contain only exact, contiguous quotes copied byte-for-byte from the supplied log.",
+		// Fork change: a live muse-spark-1.3 run joined several log lines into one quote,
+		// which cannot be verified and discards the whole receipt.
+		"Each quote is part of a single log line: never join lines, and use one evidence item per line.",
 		`Allowed evidence kinds: ${ALLOWED_KINDS.join(", ")}.`,
 		`Return at most ${limits.maxEvidenceItems} evidence items and keep each quote at most ${limits.maxQuoteChars} characters.`,
 		"Prefer the first causal-looking fatal/failure signal, unique fatal signatures, failing targets, and useful warnings.",

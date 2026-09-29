@@ -117,6 +117,29 @@ describe("isDiagnosticCommand — the ecosystems upstream SoL-Pi missed", () => 
 		assert.equal(isDiagnosticCommand("cd repo && git pull && dotnet test --nologo"), true);
 	});
 
+	// Regressions found by the first live run against a real reducer model.
+	it("does not split on a separator inside quotes", () => {
+		const command = 'cd D:/repo/dotnet && dotnet test --no-build --logger "console;verbosity=detailed"';
+		assert.deepEqual(splitCommandSegments(command), [
+			"cd D:/repo/dotnet",
+			'dotnet test --no-build --logger "console;verbosity=detailed"',
+		]);
+		assert.equal(isDiagnosticCommand("echo 'a;b|c' && vitest run"), true);
+	});
+
+	it("matches a runner invoked through a directory path", () => {
+		assert.equal(isDiagnosticCommand("D:/Work/app/node_modules/.bin/vitest run --reporter=verbose"), true);
+		assert.equal(isDiagnosticCommand("node_modules/.bin/jest --ci"), true);
+		assert.equal(isDiagnosticCommand('"C:\\Program Files\\dotnet\\dotnet.exe" test'), true);
+		assert.equal(isDiagnosticCommand("/usr/bin/make -j8"), true);
+		assert.equal(isDiagnosticCommand("/usr/bin/cat build.log"), false);
+	});
+
+	it("keeps relative launchers matchable after the path fix", () => {
+		assert.equal(isDiagnosticCommand("./gradlew test"), true);
+		assert.equal(isDiagnosticCommand(".\\tools\\check.ps1"), true);
+	});
+
 	it("honors exclude as a veto over the whole command line", () => {
 		assert.equal(isDiagnosticCommand("npm run test && npm run deploy", { exclude: ["deploy"] }), false);
 	});

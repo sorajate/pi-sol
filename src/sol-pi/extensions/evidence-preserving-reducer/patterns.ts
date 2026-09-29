@@ -149,7 +149,54 @@ export const COMMAND_PRESETS: Readonly<Record<CommandPresetName, readonly RegExp
 	],
 });
 
-const SEGMENT_SEPARATORS = /&&|\|\||[;|\n\r]+/u;
+/**
+ * Split on shell separators outside single or double quotes, so
+ * `dotnet test --logger "console;verbosity=detailed"` stays one segment.
+ */
+function splitOutsideQuotes(text: string): string[] {
+	const parts: string[] = [];
+	let current = "";
+	let quote: '"' | "'" | undefined;
+	for (let index = 0; index < text.length; index++) {
+		const character = text[index]!;
+		if (quote) {
+			current += character;
+			if (character === quote) quote = undefined;
+			continue;
+		}
+		if (character === '"' || character === "'") {
+			quote = character;
+			current += character;
+			continue;
+		}
+		const rest = text.slice(index);
+		const separator = /^(?:&&|\|\||[;|\n\r]+)/u.exec(rest);
+		if (separator) {
+			parts.push(current);
+			current = "";
+			index += separator[0].length - 1;
+			continue;
+		}
+		current += character;
+	}
+	parts.push(current);
+	return parts;
+}
+
+/**
+ * Fork addition: drop a directory prefix from the runner so
+ * `node_modules/.bin/vitest`, `C:\tools\dotnet.exe`, or `/usr/bin/make` match
+ * the same presets as their bare names. A leading `./`, `../`, or `.\` is kept,
+ * because the `script` and `jvm` presets match those relative launchers directly.
+ */
+function stripRunnerDirectory(segment: string): string {
+	const match = /^("[^"]+"|'[^']+'|\S+)(.*)$/su.exec(segment);
+	if (!match) return segment;
+	const runner = match[1]!.replace(/^["']|["']$/gu, "");
+	if (/^\.{1,2}[/\\]/u.test(runner) || !/[/\\]/u.test(runner)) return segment;
+	const base = runner.split(/[/\\]/u).at(-1);
+	return base ? `${base}${match[2]}` : segment;
+}
 
 /**
  * Wrappers that carry no diagnostic meaning of their own. Stripped from the
@@ -225,7 +272,7 @@ export function splitCommandSegments(command: string): string[] {
 	while (queue.length > 0) {
 		const item = queue.shift();
 		if (!item) break;
-		const normalized = stripLeadingWrappers(item.text);
+		const normalized = stripRunnerDirectory(stripLeadingWrappers(item.text));
 		if (!normalized) continue;
 
 		if (item.depth < MAX_UNWRAP_DEPTH) {
@@ -237,8 +284,7 @@ export function splitCommandSegments(command: string): string[] {
 			}
 		}
 
-		const parts = normalized
-			.split(SEGMENT_SEPARATORS)
+		const parts = splitOutsideQuotes(normalized)
 			.map((part) => part.trim())
 			.filter((part) => part.length > 0);
 		if (parts.length <= 1) {
