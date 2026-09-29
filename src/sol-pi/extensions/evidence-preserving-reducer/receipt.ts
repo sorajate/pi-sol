@@ -101,14 +101,36 @@ export function reducerInput(source: ReceiptSource): string {
 	].join("\n");
 }
 
-function lineNumberOf(body: string, quote: string): number | undefined {
-	const index = body.indexOf(quote);
-	if (index < 0) return undefined;
+function lineAt(body: string, index: number): number {
 	let line = 1;
 	for (let cursor = 0; cursor < index; cursor++) {
 		if (body.charCodeAt(cursor) === 10) line++;
 	}
 	return line;
+}
+
+/**
+ * Fork change: report the line a quote actually came from. Upstream used the
+ * first `indexOf` hit, so a quote that is also a substring of an earlier line
+ * ("   Assert.Equal() Failure" inside "[xUnit.net ...]   Assert.Equal() Failure")
+ * pointed the agent at the wrong line. Prefer a line whose trimmed text equals
+ * the trimmed quote; otherwise keep the first occurrence.
+ */
+function lineNumberOf(body: string, quote: string): number | undefined {
+	const first = body.indexOf(quote);
+	if (first < 0) return undefined;
+	const wanted = quote.trim();
+	if (wanted.length > 0 && !quote.includes("\n")) {
+		let from = first;
+		while (from >= 0) {
+			const start = body.lastIndexOf("\n", from) + 1;
+			const endIndex = body.indexOf("\n", from);
+			const end = endIndex < 0 ? body.length : endIndex;
+			if (body.slice(start, end).trim() === wanted) return lineAt(body, start);
+			from = body.indexOf(quote, from + 1);
+		}
+	}
+	return lineAt(body, first);
 }
 
 /**

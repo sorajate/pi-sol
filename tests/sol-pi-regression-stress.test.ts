@@ -158,7 +158,7 @@ describe("SoL-Pi regression stress", () => {
 				expect(authModel).toBe(REDUCER_MODEL);
 				expect(call?.model).toMatchObject({ provider: REDUCER_MODEL.provider, id: REDUCER_MODEL.id });
 				expect(call?.model).not.toMatchObject({ provider: ACTIVE_MODEL.provider, id: ACTIVE_MODEL.id });
-				expect(call?.options).toMatchObject({ cacheRetention: "none", maxTokens: 4_096, timeoutMs: 90_000 });
+				expect(call?.options).toMatchObject({ cacheRetention: "none", maxTokens: 4_096, timeoutMs: 240_000 });
 				expect(result.model).toBe(REDUCER_MODEL.id);
 				expect(result.provider).toBe(REDUCER_MODEL.provider);
 				expect(result.outputText).toContain("ERROR stress failure");

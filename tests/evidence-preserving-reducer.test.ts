@@ -274,7 +274,7 @@ describe("evidence-preserving reducer", () => {
 		expect(call?.model).toBe(REDUCER_MODEL);
 		expect(call?.context.systemPrompt).toContain("lossless test/build output reducer");
 		expect(contextInput(call!.context)).toContain("<untrusted_log>");
-		expect(call?.options).toMatchObject({ cacheRetention: "none", maxTokens: 4_096, timeoutMs: 90_000 });
+		expect(call?.options).toMatchObject({ cacheRetention: "none", maxTokens: 4_096, timeoutMs: 240_000 });
 		expect(call?.options.signal).toBeInstanceOf(AbortSignal);
 		const receipt = result.content[0]?.text ?? "";
 		expect(receipt).toMatch(/status=failure/u);
@@ -346,7 +346,7 @@ describe("evidence-preserving reducer", () => {
 		const result = await callReducer(config, source, context);
 		expect(result.ok).toBe(true);
 		expect(call?.model).toBe(REDUCER_MODEL);
-		expect(call?.options).toMatchObject({ cacheRetention: "none", maxTokens: 4_096, timeoutMs: 90_000 });
+		expect(call?.options).toMatchObject({ cacheRetention: "none", maxTokens: 4_096, timeoutMs: 240_000 });
 		expect(result.model).toBe(REDUCER_MODEL.id);
 		expect(result.usage.totalTokens).toBeGreaterThan(0);
 
