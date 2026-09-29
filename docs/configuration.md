@@ -29,8 +29,8 @@ The project file replaces the global file. SoL-Pi does not merge them.
     "excludeCommands": [],
     "minBytes": 4096,
     "maxChars": 600000,
-    "maxOutputTokens": 8192,
-    "timeoutMs": 90000,
+    "maxOutputTokens": 32768,
+    "timeoutMs": 240000,
     "maxEvidenceItems": 12,
     "maxQuoteChars": 600,
     "maxConcurrent": 3,
@@ -85,8 +85,8 @@ Every key is optional; the defaults below apply when the object is omitted. `red
 | `excludeCommands` | `[]` | Regex sources that veto the whole command line. |
 | `minBytes` | `4096` | Smaller output is left untouched and never archived. |
 | `maxChars` | `600000` | Larger output is left untouched; it is not truncated before reduction. |
-| `maxOutputTokens` | `8192` | Cap for the reducer completion, including reasoning tokens. Reasoning models need headroom: a cap that the reasoning alone exhausts yields no receipt and a wasted call. |
-| `timeoutMs` | `90000` | Hard timeout for the nested call. |
+| `maxOutputTokens` | `32768` | Cap for the reducer completion, including reasoning tokens. Reasoning models need headroom: a cap that the reasoning alone exhausts yields no receipt and a wasted call. |
+| `timeoutMs` | `240000` | Hard timeout for the nested call. Long logs plus reasoning can take minutes. |
 | `maxEvidenceItems` | `12` | Most quotes a receipt may carry. |
 | `maxQuoteChars` | `600` | Longest accepted quote. |
 | `maxConcurrent` | `3` | In-flight nested calls; a saturated budget fails open. |

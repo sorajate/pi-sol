@@ -68,6 +68,34 @@ describe("validateReceipt", () => {
 		assert.equal(result.value.evidence[0]?.line, 2);
 	});
 
+	it("reports the line a quote came from when it is also a substring of an earlier line", () => {
+		// Regression from live run 2: dotnet prints each failure twice, once prefixed.
+		const body = [
+			"[xUnit.net 00:00:00.19]       Assert.Equal() Failure: Values differ",
+			"  noise",
+			"   Assert.Equal() Failure: Values differ",
+			"   error: failed",
+		].join("\n");
+		const source = sourceOf(body, true);
+		const result = validateReceipt(
+			payload({ evidence: [{ kind: "failure", quote: "   Assert.Equal() Failure: Values differ" }] }, source),
+			source,
+			LIMITS,
+		);
+		assert.equal(result.ok, true);
+		if (!result.ok) return;
+		assert.equal(result.value.evidence[0]?.line, 3);
+	});
+
+	it("keeps the first occurrence for a quote that is only ever a fragment", () => {
+		const body = ["alpha error beta", "gamma error delta"].join("\n");
+		const source = sourceOf(body, true);
+		const result = validateReceipt(payload({ evidence: [{ kind: "failure", quote: "error" }] }, source), source, LIMITS);
+		assert.equal(result.ok, true);
+		if (!result.ok) return;
+		assert.equal(result.value.evidence[0]?.line, 1);
+	});
+
 	it("rejects malformed JSON", () => {
 		assert.deepEqual(validateReceipt("not json", sourceOf(), LIMITS), { ok: false, reason: "invalid-json" });
 	});

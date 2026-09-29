@@ -64,9 +64,12 @@ export const DEFAULT_REDUCER_SETTINGS: Readonly<Omit<ReducerConfig, "runId" | "s
 	minBytes: 4_096,
 	maxChars: 600_000,
 	// Fork change: reasoning reducer models spend most of the budget thinking; a live
-	// muse-spark-1.3 run used 1,878 reasoning tokens before emitting a 1 KB receipt.
-	maxOutputTokens: 8_192,
-	timeoutMs: 90_000,
+	// muse-spark-1.3 run used up to 4,622 reasoning tokens before emitting a 1 KB
+	// receipt. The cap is only a ceiling: providers bill generated tokens, not the
+	// cap, and the request is further capped at the reducer model's own maxTokens.
+	maxOutputTokens: 32_768,
+	// Fork change: long logs plus reasoning can take minutes; 90 s was too tight.
+	timeoutMs: 240_000,
 	maxEvidenceItems: MAX_EVIDENCE_ITEMS,
 	maxQuoteChars: MAX_QUOTE_CHARS,
 	redactSecrets: true,
@@ -92,7 +95,7 @@ type NumberKey =
 const NUMBER_BOUNDS: Readonly<Record<NumberKey, readonly [number, number]>> = {
 	minBytes: [1, 10_000_000],
 	maxChars: [1_000, 20_000_000],
-	maxOutputTokens: [64, 64_000],
+	maxOutputTokens: [64, 128_000],
 	timeoutMs: [1_000, 900_000],
 	maxEvidenceItems: [1, 100],
 	maxQuoteChars: [16, 8_000],
