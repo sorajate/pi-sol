@@ -9,6 +9,8 @@ import { CONFIG_DIR_NAME, getAgentDir } from "@earendil-works/pi-coding-agent";
 import {
 	DEFAULT_REDUCER_MODEL,
 	DEFAULT_REDUCER_PROVIDER,
+	loadReducerConfig,
+	type ReducerConfigOptions,
 } from "./extensions/evidence-preserving-reducer/config.ts";
 
 export const DEFAULT_CACHE_WRITE_READ_RATIO = 12.5;
@@ -20,6 +22,8 @@ export interface SolPiConfig {
 	readonly evidencePreservingReducer: boolean;
 	readonly evidencePreservingReducerModel: string;
 	readonly evidencePreservingReducerProvider: string;
+	/** Fork addition: tunable reducer behavior (presets, redaction, retention, limits). */
+	readonly evidencePreservingReducerOptions: ReducerConfigOptions;
 	readonly onlineContextCompact: boolean;
 	readonly cacheWriteReadRatio: number;
 }
@@ -31,6 +35,7 @@ export const DEFAULT_CONFIG: SolPiConfig = Object.freeze({
 	evidencePreservingReducer: false,
 	evidencePreservingReducerModel: DEFAULT_REDUCER_MODEL,
 	evidencePreservingReducerProvider: DEFAULT_REDUCER_PROVIDER,
+	evidencePreservingReducerOptions: Object.freeze({}),
 	onlineContextCompact: false,
 	cacheWriteReadRatio: DEFAULT_CACHE_WRITE_READ_RATIO,
 });
@@ -42,7 +47,14 @@ const FEATURE_KEYS = [
 	"onlineContextCompact",
 ] as const;
 const STRING_KEYS = ["evidencePreservingReducerModel", "evidencePreservingReducerProvider"] as const;
-const CONFIG_KEYS = new Set<string>(["version", ...FEATURE_KEYS, ...STRING_KEYS, "cacheWriteReadRatio"]);
+const REDUCER_OPTIONS_KEY = "evidencePreservingReducerOptions";
+const CONFIG_KEYS = new Set<string>([
+	"version",
+	...FEATURE_KEYS,
+	...STRING_KEYS,
+	REDUCER_OPTIONS_KEY,
+	"cacheWriteReadRatio",
+]);
 
 export function findConfigPath(
 	cwd = process.cwd(),
@@ -111,6 +123,7 @@ export function loadSolPiConfig(
 		DEFAULT_REDUCER_PROVIDER,
 		path,
 	);
+	const evidencePreservingReducerOptions = reducerOptionsConfigValue(record, path);
 
 	return Object.freeze({
 		...DEFAULT_CONFIG,
@@ -118,7 +131,30 @@ export function loadSolPiConfig(
 		cacheWriteReadRatio,
 		evidencePreservingReducerModel,
 		evidencePreservingReducerProvider,
+		evidencePreservingReducerOptions,
 	}) as SolPiConfig;
+}
+
+/**
+ * Validate the reducer options eagerly, at config load, so a bad value is a
+ * startup error rather than a silently ignored setting on the first long log.
+ */
+function reducerOptionsConfigValue(
+	record: Record<string, unknown>,
+	path: string,
+): ReducerConfigOptions {
+	if (!Object.hasOwn(record, REDUCER_OPTIONS_KEY)) return DEFAULT_CONFIG.evidencePreservingReducerOptions;
+	const value = record[REDUCER_OPTIONS_KEY];
+	if (typeof value !== "object" || value === null || Array.isArray(value)) {
+		throw new Error(`SoL-Pi config ${REDUCER_OPTIONS_KEY} must be a JSON object: ${path}`);
+	}
+	try {
+		// The runtime directory is irrelevant to validation; only the options matter.
+		loadReducerConfig(".", value as ReducerConfigOptions);
+	} catch (error) {
+		throw new Error(`${path}: ${error instanceof Error ? error.message : String(error)}`);
+	}
+	return Object.freeze({ ...(value as ReducerConfigOptions) });
 }
 
 function stringConfigValue(

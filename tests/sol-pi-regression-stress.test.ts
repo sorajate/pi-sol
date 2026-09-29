@@ -15,10 +15,8 @@ import {
 	loadReducerConfig,
 	REDUCER_RECEIPT_SCHEMA,
 } from "../src/sol-pi/extensions/evidence-preserving-reducer/index.ts";
-import {
-	callReducer,
-	type CompatComplete,
-} from "../src/sol-pi/extensions/evidence-preserving-reducer/provider.ts";
+import { callReducer } from "../src/sol-pi/extensions/evidence-preserving-reducer/provider.ts";
+import { sha256 } from "../src/sol-pi/extensions/evidence-preserving-reducer/config.ts";
 import { FakePi, FakeSessionManager, fakeContext } from "./helpers.ts";
 
 const ACTIVE_MODEL = {
@@ -133,23 +131,27 @@ describe("SoL-Pi regression stress", () => {
 					modelRegistry: {
 						find: (provider: string, modelId: string) =>
 							provider === REDUCER_MODEL.provider && modelId === REDUCER_MODEL.id ? REDUCER_MODEL : undefined,
-						getApiKeyAndHeaders: async (model: Model<string>) => {
+						hasConfiguredAuth: () => true,
+						complete: async (model: Model<string>, context: Context, options?: Record<string, unknown>) => {
 							authModel = model;
-							return { ok: true, apiKey: "test-key", headers: {}, env: {}, baseUrl: "https://stress.invalid/v1" };
+							return reducerComplete((value) => {
+								call = value;
+							})(model, context, options);
 						},
 					} as unknown as ExtensionContext["modelRegistry"],
 				});
 
 				const result = await callReducer(
 					config,
-					"pytest -q",
-					true,
-					archive,
-					body,
+					{
+						archive,
+						body,
+						command: "pytest -q",
+						commandSha256: sha256("pytest -q"),
+						isError: true,
+						redactedLines: 0,
+					},
 					context,
-					reducerComplete((value) => {
-						call = value;
-					}) as CompatComplete,
 				);
 
 				expect(result.ok).toBe(true);

@@ -22,6 +22,23 @@ The project file replaces the global file. SoL-Pi does not merge them.
   "evidencePreservingReducer": false,
   "evidencePreservingReducerProvider": "provider-id",
   "evidencePreservingReducerModel": "model-id",
+  "evidencePreservingReducerOptions": {
+    "tools": ["bash", "powershell"],
+    "commandPresets": ["dotnet", "node"],
+    "includeCommands": [],
+    "excludeCommands": [],
+    "minBytes": 4096,
+    "maxChars": 600000,
+    "maxOutputTokens": 2048,
+    "timeoutMs": 90000,
+    "maxEvidenceItems": 12,
+    "maxQuoteChars": 600,
+    "maxConcurrent": 3,
+    "redactSecrets": true,
+    "retentionDays": 7,
+    "journal": true,
+    "notify": true
+  },
   "onlineContextCompact": false,
   "cacheWriteReadRatio": 12.5
 }
@@ -46,6 +63,7 @@ This preflight does not make every valid SoL-Pi configuration all-enabled. Witho
 - `evidencePreservingReducer`: registers a `tool_result` handler and delegates long diagnostic-log reduction to the configured reducer provider/model.
 - `evidencePreservingReducerProvider`: provider namespace used to resolve the reducer model through Pi's model registry.
 - `evidencePreservingReducerModel`: model id used for Evidence-Preserving Reducer.
+- `evidencePreservingReducerOptions`: fork addition. One object that tunes the reducer without adding a top-level key per setting; see below.
 - `onlineContextCompact`: registers `update_plan` and boundary-driven native compaction after the other SoL-Pi context transformers.
 - `cacheWriteReadRatio`: supplies the single economic decision ratio used by Online Context Compact.
 
@@ -54,6 +72,32 @@ This preflight does not make every valid SoL-Pi configuration all-enabled. Witho
 The release entry supplies the run label and session-derived storage. It uses one configurable model route:
 
 - **Reducer provider/model** — from `evidencePreservingReducerProvider` and `evidencePreservingReducerModel` in the effective `sol-pi.json`. If omitted, SoL-Pi uses its built-in reducer route. SoL-Pi resolves that model through Pi's model registry and still relies on Pi-managed authentication; do not put credentials in `sol-pi.json`.
+
+### evidencePreservingReducerOptions
+
+Every key is optional; the defaults below apply when the object is omitted. `reducerProvider` and `reducerModel` may also be set here, and they win over the two dedicated top-level keys when both are present.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `tools` | `["bash", "powershell"]` | Tool names whose results may be reduced. `powershell` is Pi's default shell tool on Windows. |
+| `commandPresets` | all nine presets | Subset of `dotnet`, `node`, `python`, `rust`, `go`, `jvm`, `native`, `script`, `misc`. |
+| `includeCommands` | `[]` | Extra regex sources (case-insensitive) matched against each command segment. |
+| `excludeCommands` | `[]` | Regex sources that veto the whole command line. |
+| `minBytes` | `4096` | Smaller output is left untouched and never archived. |
+| `maxChars` | `600000` | Larger output is left untouched; it is not truncated before reduction. |
+| `maxOutputTokens` | `2048` | Cap for the reducer completion. |
+| `timeoutMs` | `90000` | Hard timeout for the nested call. |
+| `maxEvidenceItems` | `12` | Most quotes a receipt may carry. |
+| `maxQuoteChars` | `600` | Longest accepted quote. |
+| `maxConcurrent` | `3` | In-flight nested calls; a saturated budget fails open. |
+| `redactSecrets` | `true` | Replace secret-looking values before the log leaves the machine. |
+| `retentionDays` | `7` | Prune archived logs older than this at session start and shutdown; `0` keeps them. |
+| `journal` | `true` | Append one non-context session entry per decision. |
+| `notify` | `true` | TUI notification for the route announcement and each saving. |
+
+Command eligibility is evaluated per segment: the command line is split on `&&`, `||`, `;`, `|`, and newlines, each segment is unwrapped (`sudo`, `time`, `env VAR=…`, `bash -c "…"`, `pwsh -Command "…"`, `cmd /c "…"`) and only then matched. `cd src && dotnet test` is eligible; `cat build.log` is not.
+
+The `/evidence-reducer` command prints the effective configuration, the applied/cached/fallback counters, the bytes removed from future prompts, and the archive location.
 
 ## Online Context Compact runtime inputs
 

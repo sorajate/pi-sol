@@ -111,6 +111,7 @@ export class FakeSessionManager {
 export class FakePi {
 	readonly handlers = new Map<string, Handler[]>();
 	readonly registeredTools: ToolDefinition[] = [];
+	readonly registeredCommands = new Map<string, { description?: string; handler: (args: string, ctx: never) => Promise<void> }>();
 	readonly sentMessages: Array<{
 		message: { customType: string; content: string; display: boolean; details?: unknown };
 		options: { triggerTurn?: boolean; deliverAs?: "steer" | "followUp" | "nextTurn" } | undefined;
@@ -129,6 +130,17 @@ export class FakePi {
 
 	registerTool(tool: ToolDefinition): void {
 		this.registeredTools.push(tool);
+	}
+
+	registerCommand(name: string, options: { description?: string; handler: (args: string, ctx: never) => Promise<void> }): void {
+		this.registeredCommands.set(name, options);
+	}
+
+	/** Run a registered command handler. */
+	async command(name: string, args: string, context: ExtensionContext): Promise<void> {
+		const command = this.registeredCommands.get(name);
+		if (!command) throw new Error(`command not registered: ${name}`);
+		await command.handler(args, context as never);
 	}
 
 	appendEntry(customType: string, data?: unknown): void {

@@ -12,15 +12,13 @@ import type { ExtensionContext, ToolResultEvent } from "@earendil-works/pi-codin
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
 	createEvidencePreservingReducerExtension,
-	DIAGNOSTIC_COMMAND,
+	isDiagnosticCommand,
 	loadReducerConfig,
 	REDUCER_RECEIPT_SCHEMA,
 } from "../src/sol-pi/extensions/evidence-preserving-reducer/index.ts";
 import { archiveBody } from "../src/sol-pi/extensions/evidence-preserving-reducer/archive.ts";
-import {
-	callReducer,
-	type CompatComplete,
-} from "../src/sol-pi/extensions/evidence-preserving-reducer/provider.ts";
+import { callReducer } from "../src/sol-pi/extensions/evidence-preserving-reducer/provider.ts";
+import { sha256 } from "../src/sol-pi/extensions/evidence-preserving-reducer/config.ts";
 import { runtimeRoot } from "../src/sol-pi/runtime-paths.ts";
 import { FakePi, FakeSessionManager, fakeContext } from "./helpers.ts";
 
@@ -219,10 +217,10 @@ describe("evidence-preserving reducer", () => {
 	});
 
 	it("keeps the diagnostic command trigger generic", () => {
-		expect(DIAGNOSTIC_COMMAND.test("pytest -q")).toBe(true);
-		expect(DIAGNOSTIC_COMMAND.test("lake build")).toBe(true);
-		expect(DIAGNOSTIC_COMMAND.test("cargo test --all")).toBe(true);
-		expect(DIAGNOSTIC_COMMAND.test("rg test src")).toBe(false);
+		expect(isDiagnosticCommand("pytest -q")).toBe(true);
+		expect(isDiagnosticCommand("lake build")).toBe(true);
+		expect(isDiagnosticCommand("cargo test --all")).toBe(true);
+		expect(isDiagnosticCommand("rg test src")).toBe(false);
 	});
 
 	it("loads a configured reducer provider/model route", async () => {
@@ -283,7 +281,7 @@ describe("evidence-preserving reducer", () => {
 		expect(receipt).toMatch(/line=2/u);
 		expect(receipt).toMatch(/reducer_provider=openai-codex/u);
 		expect(receipt).toContain(`reducer_model=${REDUCER_MODEL.id}`);
-		expect(receipt).toMatch(/authority=Sol retains diagnosis/u);
+		expect(receipt).toMatch(/authority=the main agent retains diagnosis/u);
 		expect(Buffer.byteLength(receipt)).toBeLessThan(Buffer.byteLength(body));
 
 		const events = manager.customEntryData();
@@ -293,19 +291,31 @@ describe("evidence-preserving reducer", () => {
 		const localSourcePath = relative(join(runtimeRoot(context), "evidence-preserving-reducer"), sourcePath);
 		expect(localSourcePath.length > 0 && !localSourcePath.startsWith("..") && !isAbsolute(localSourcePath)).toBe(true);
 		expect(await readFile(sourcePath, "utf8")).toBe(body);
-		expect((await stat(sourcePath)).mode & 0o777).toBe(0o600);
+		if (process.platform !== "win32") {
+			// NTFS ignores POSIX modes, so the archive relies on assertRegularFile there.
+			expect((await stat(sourcePath)).mode & 0o777).toBe(0o600);
+		}
 		expect(events.filter((entry) => entry.kind === "applied")).toHaveLength(1);
-		expect(notify).toHaveBeenCalledTimes(1);
-		expect(notify.mock.calls[0]?.[0]).toMatch(
+		// The first notification announces the reducer route, the last reports the saving.
+		expect(notify.mock.calls[0]?.[0]).toMatch(/^⚡ SoL-Pi · Evidence-Preserving Reducer active/u);
+		expect(notify.mock.calls.at(-1)?.[0]).toMatch(
 			/^⚡ SoL-Pi · Luna Delegating\nMoney saved · .+ removed from future prompts$/u,
 		);
 	});
 
-	it("uses Pi-resolved authentication on a fork-shaped model registry", async () => {
+	it("routes the nested call through modelRegistry.complete() and fails closed without auth", async () => {
 		const root = await storeRoot();
 		const config = loadReducerConfig(join(root, "session-runtime"));
-		const body = `ERROR fork compatibility\n${"diagnostic\n".repeat(400)}`;
+		const body = `ERROR registry routing\n${"diagnostic\n".repeat(400)}`;
 		const archive = await archiveBody(config.storeRoot, body);
+		const source = {
+			archive,
+			body,
+			command: "pytest -q",
+			commandSha256: sha256("pytest -q"),
+			isError: true,
+			redactedLines: 0,
+		};
 		let call: CapturedCall | undefined;
 		const completion = modelComplete(
 			body,
@@ -314,42 +324,49 @@ describe("evidence-preserving reducer", () => {
 				source_sha256: sourceHash(input),
 				status: "failure",
 				uncertain: false,
-				evidence: [{ kind: "failure", quote: "ERROR fork compatibility" }],
+				evidence: [{ kind: "failure", quote: "ERROR registry routing" }],
 			}),
 			"stop",
 			(value) => {
 				call = value;
 			},
-		) as CompatComplete;
-		let authModel: Model<string> | undefined;
-		const context = fakeContext(new FakeSessionManager([], "fork-session", root), {
+		);
+		const find = (provider: string, modelId: string) =>
+			provider === REDUCER_MODEL.provider && modelId === REDUCER_MODEL.id ? REDUCER_MODEL : undefined;
+
+		const context = fakeContext(new FakeSessionManager([], "registry-session", root), {
 			model: ACTIVE_MODEL,
 			modelRegistry: {
-				find: (provider: string, modelId: string) =>
-					provider === REDUCER_MODEL.provider && modelId === REDUCER_MODEL.id ? REDUCER_MODEL : undefined,
-				getApiKeyAndHeaders: async (model: Model<string>) => {
-					authModel = model;
-					return {
-					ok: true,
-					apiKey: "fork-test-key",
-					headers: { "x-test-header": "fork" },
-					env: { TEST_REGION: "test" },
-					baseUrl: "https://fork.example.invalid/v1",
-					};
-				},
+				find,
+				hasConfiguredAuth: () => true,
+				complete: completion,
 			} as unknown as ExtensionContext["modelRegistry"],
 		});
 
-		const result = await callReducer(config, "pytest -q", true, archive, body, context, completion);
-
+		const result = await callReducer(config, source, context);
 		expect(result.ok).toBe(true);
-		expect(authModel).toBe(REDUCER_MODEL);
-		expect(call?.model.baseUrl).toBe("https://fork.example.invalid/v1");
-		expect(call?.options).toMatchObject({
-			apiKey: "fork-test-key",
-			headers: { "x-test-header": "fork" },
-			env: { TEST_REGION: "test" },
+		expect(call?.model).toBe(REDUCER_MODEL);
+		expect(call?.options).toMatchObject({ cacheRetention: "none", maxTokens: 2_048, timeoutMs: 90_000 });
+		expect(result.model).toBe(REDUCER_MODEL.id);
+		expect(result.usage.totalTokens).toBeGreaterThan(0);
+
+		// An unauthenticated reducer model must fail before any request is built.
+		let unauthenticatedCalls = 0;
+		const unauthenticated = fakeContext(new FakeSessionManager([], "no-auth-session", root), {
+			model: ACTIVE_MODEL,
+			modelRegistry: {
+				find,
+				hasConfiguredAuth: () => false,
+				complete: async () => {
+					unauthenticatedCalls++;
+					throw new Error("unexpected model call");
+				},
+			} as unknown as ExtensionContext["modelRegistry"],
 		});
+		await expect(callReducer(config, source, unauthenticated)).rejects.toMatchObject({
+			name: "ReducerModelUnavailableError",
+		});
+		expect(unauthenticatedCalls).toBe(0);
 	});
 
 	it.each([false, true])(

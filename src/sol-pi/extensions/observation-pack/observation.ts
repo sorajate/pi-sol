@@ -22,6 +22,24 @@ const READ_OBJECT_FLAGS = constants.O_RDONLY | constants.O_NOFOLLOW;
 const CREATE_OBJECT_FLAGS = constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW;
 
 /**
+ * O_NOFOLLOW is ignored on Windows, so an explicit lstat check is what actually
+ * keeps a planted symlink from redirecting an archive write or a recall read.
+ * The ELOOP code keeps the failure indistinguishable from the POSIX one.
+ */
+async function assertRegularObject(path: string, options: { allowMissing?: boolean } = {}): Promise<void> {
+	let stats;
+	try {
+		stats = await lstat(path);
+	} catch (error) {
+		if (options.allowMissing && (error as NodeJS.ErrnoException).code === "ENOENT") return;
+		throw error;
+	}
+	if (stats.isSymbolicLink() || !stats.isFile()) {
+		throw Object.assign(new Error(`Refusing to follow a non-regular object at ${path}`), { code: "ELOOP" });
+	}
+}
+
+/**
  * Receipts from the evidence-preserving reducer are already a reduction of a
  * long log. Packing them again would replace verified evidence with an excerpt.
  */
@@ -130,6 +148,7 @@ export async function ensureStored(observation: Observation): Promise<void> {
 
 	let handle: FileHandle | undefined;
 	try {
+		await assertRegularObject(observation.filePath, { allowMissing: true });
 		handle = await open(observation.filePath, CREATE_OBJECT_FLAGS, 0o600);
 		await handle.writeFile(observation.text, { encoding: "utf8" });
 	} catch (error) {
@@ -215,6 +234,7 @@ export async function readRecallChunk(
 	offset: number,
 	limits: { readonly maxBytes: number; readonly maxLines: number },
 ): Promise<RecallChunk> {
+	await assertRegularObject(path);
 	const handle = await open(path, READ_OBJECT_FLAGS);
 	try {
 		const fileStats = await handle.stat();

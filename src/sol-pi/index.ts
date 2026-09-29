@@ -15,8 +15,11 @@ export function registerConfiguredFeatures(pi: ExtensionAPI, config: SolPiConfig
 	if (config.observationPack) registerObservationPack(pi);
 	if (config.evidencePreservingReducer) {
 		registerEvidencePreservingReducer(pi, {
-			reducerModel: config.evidencePreservingReducerModel,
-			reducerProvider: config.evidencePreservingReducerProvider,
+			...config.evidencePreservingReducerOptions,
+			reducerProvider:
+				config.evidencePreservingReducerOptions.reducerProvider ?? config.evidencePreservingReducerProvider,
+			reducerModel:
+				config.evidencePreservingReducerOptions.reducerModel ?? config.evidencePreservingReducerModel,
 		});
 	}
 	if (config.onlineContextCompact) registerOnlineContextCompact(pi, config.cacheWriteReadRatio);
