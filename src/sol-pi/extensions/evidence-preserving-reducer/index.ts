@@ -256,7 +256,11 @@ export async function reduceToolResult(
 		});
 	}
 
-	const redaction = redactSecrets(body, config.redactSecrets);
+	// Fork change: the reducer sees and is verified against an LF projection.
+	// Windows tools (dotnet, msbuild) emit CRLF, and a live muse-spark-1.3 run
+	// quoted multi-line evidence with plain \n, which a CRLF body can never match.
+	// The archive keeps the exact original bytes, CRLF included.
+	const redaction = redactSecrets(body.replace(/\r\n/gu, "\n"), config.redactSecrets);
 
 	let archive: ArchiveObject;
 	try {
