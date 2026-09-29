@@ -16,6 +16,8 @@ function packedFiles(): string[] {
 		cwd: process.cwd(),
 		encoding: "utf8",
 		timeout: 25_000,
+		// npm is npm.cmd on Windows and spawnSync does not search PATHEXT without a shell.
+		shell: process.platform === "win32",
 	});
 	if (result.status !== 0) throw new Error(result.stderr || result.stdout);
 	const report = JSON.parse(result.stdout) as PackReport[];

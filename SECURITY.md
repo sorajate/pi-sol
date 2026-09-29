@@ -7,9 +7,16 @@ SoL-Pi is a Pi extension. It runs with the filesystem, process, network, and cre
 - Action Fusion can modify files and run shell commands requested by the model.
 - ObservationPack stores large tool results under Pi's session directory.
 - Evidence-Preserving Reducer archives diagnostic logs locally and, when explicitly enabled, sends eligible logs through the configured reducer model using Pi-managed authentication.
-- The reducer skips text matching its likely-secret detector, but that detector is a precaution rather than a complete secret scanner. Do not enable remote reduction for workloads whose logs must remain local.
+- The reducer redacts secret-looking values (keys, tokens, bearer headers, connection strings, PEM bodies, credentials in URLs) before the log leaves the machine, and evidence quotes are verified against that redacted projection so a receipt cannot carry a secret back into context. Redaction is a precaution, not a complete secret scanner: review it before enabling remote reduction for workloads whose logs must remain local, or set `"redactSecrets": true` with `"evidencePreservingReducer": false` if you only want local archiving.
+- Which commands are eligible is configurable (`commandPresets`, `includeCommands`, `excludeCommands`). Nothing is sent for a command that does not match, and `"excludeCommands"` vetoes a whole command line.
 - Online Context Compact stores plan and compaction state in Pi's session log; see below.
 - Project-local `.pi/sol-pi.json` files should be used only in trusted repositories.
+
+## Archived log retention
+
+Archived logs and packed observations live under `<session-directory>/sol-pi/<session-id>/`. Upstream SoL-Pi never deletes them. This fork prunes reducer archives whose mtime is older than `retentionDays` (default 7, `0` keeps them forever) at session start and session shutdown. ObservationPack archives are not pruned; delete the Pi session directory to remove them.
+
+On POSIX, archive objects are written `0600` inside `0700` directories. NTFS ignores POSIX modes, so on Windows the confidentiality of archived logs depends on the ACL of your Pi session directory (normally your user profile). Both code paths reject symlinks and non-regular files through an explicit `lstat` check, because `O_NOFOLLOW` is ignored on Windows.
 
 ## Online Context Compact data
 
@@ -17,7 +24,7 @@ Online Context Compact is off by default. When enabled, every `update_plan` call
 
 The extension creates no sidecar, attestation, payload-capture, or research-instrumentation files. State entries do not enter the model context; only the generic post-compaction reminder does. Deleting the Pi session removes both kinds of persisted Online Context Compact data.
 
-Evidence-Preserving Reducer may temporarily read an overlong bash result from outside its session archive. It accepts only a regular, non-symlink `pi-bash-*.log` file directly inside the operating system's temporary directory and copies eligible content into the session-specific archive before any nested model call.
+Evidence-Preserving Reducer may temporarily read an overlong shell result from outside its session archive. It accepts only a regular, non-symlink `pi-bash-*.log` or `pi-powershell-*.log` file directly inside the operating system's temporary directory and copies eligible content into the session-specific archive before any nested model call.
 
 ## Reporting a vulnerability
 

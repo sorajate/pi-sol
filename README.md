@@ -15,6 +15,21 @@
 > [!NOTE]
 > This repository contains the open-source version of SoL-Pi, a standalone extension for [Pi](https://github.com/earendil-works/pi). It is not an official distribution of Pi.
 
+> [!IMPORTANT]
+> **This is a fork of `NVlabs/SoL-Pi`**, maintained on the `feat/epr-dotnet-windows` branch. It keeps all four upstream mechanisms and changes the Evidence-Preserving Reducer plus Windows behavior:
+>
+> - **Command eligibility is configurable and much wider.** Upstream matched only `cargo`/`pytest`/`make`/`ninja`/`cmake`/`ctest`/`go test`/`bazel test`/`npm test`/`pnpm test`/`yarn test`/`zig build`/`lean`/`coq`/`lake build`, so `dotnet test`, `msbuild`, `gradlew test`, `npx vitest`, `npm run test`, and `tsx --test` were never reduced. This fork matches per segment (splitting `&&`, `||`, `;`, `|`, newlines and unwrapping `sudo`, `time`, `env`, `bash -c`, `pwsh -Command`, `cmd /c`) against nine ecosystem presets, plus your own `includeCommands`/`excludeCommands`.
+> - **Pi's `powershell` tool is reduced too**, not only `bash`.
+> - **Secrets are redacted instead of blocking the reduction.** Upstream skipped any log matching a likely-secret regex; this fork replaces the value, keeps the line, verifies quotes against the redacted projection, and archives the untouched original locally.
+> - **Verified receipts are cached per source hash**, so re-running the same failing command costs no second model call.
+> - **A concurrency budget** (`maxConcurrent`) fails open instead of firing unbounded nested calls from parallel tool batches.
+> - **Nested usage is returned to Pi**, so session totals include the reducer call.
+> - **Archives are pruned** after `retentionDays` (default 7) instead of accumulating forever.
+> - **Windows hardening**: symlinks and non-regular files are rejected through an explicit `lstat` check in both the reducer archive and ObservationPack, because `O_NOFOLLOW` is ignored on Windows. Three upstream tests that only passed on POSIX (`0600` mode, symlink `ELOOP`, `npm pack` through `spawnSync`) and one path-separator assertion are fixed.
+> - **Any reducer route works.** The default stays `openai-codex`/`gpt-5.6-luna`; set `evidencePreservingReducerProvider`/`Model` to any provider Pi can resolve.
+>
+> The full suite passes on Pi 0.87.1 on Windows as well as on the pinned 0.85.1.
+
 ## 💡 TL;DR
 
 **Spend less without making the agent do less useful work.**
@@ -106,6 +121,33 @@ The following conservative configuration enables only the two local mechanisms t
 ```
 
 Enable additional mechanisms only after reviewing their configuration and security implications. SoL-Pi uses no dedicated environment variables; feature flags, the reducer provider/model route, and the compaction ratio are configured in `sol-pi.json`. See [sol-pi.example.json](sol-pi.example.json) for a template listing every key.
+
+### Fork example: reducer on a non-OpenAI route
+
+This enables only the Evidence-Preserving Reducer, routes it through any provider Pi can resolve, and limits eligibility to .NET and Node builds:
+
+```json
+{
+  "version": 1,
+  "actionFusion": false,
+  "observationPack": false,
+  "evidencePreservingReducer": true,
+  "evidencePreservingReducerOptions": {
+    "reducerProvider": "opencode-go",
+    "reducerModel": "muse-spark-1.3-contributor",
+    "tools": ["bash", "powershell"],
+    "commandPresets": ["dotnet", "node"],
+    "excludeCommands": ["\\bdeploy\\b", "\\bpublish\\b"],
+    "minBytes": 8192,
+    "redactSecrets": true,
+    "retentionDays": 3
+  },
+  "onlineContextCompact": false,
+  "cacheWriteReadRatio": 12.5
+}
+```
+
+`/evidence-reducer` prints the effective configuration, the applied/cached/fallback counters, the bytes removed from future prompts, and the archive location.
 
 For the complete schema, see [Configuration](docs/configuration.md). Coding agents and automated environments should follow the canonical [agent installation and configuration protocol](agents-install.md), which describes an all-enabled configuration checked with `scripts/check-sol-pi-config.mjs --require-all-enabled`.
 

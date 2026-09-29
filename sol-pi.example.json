@@ -5,6 +5,23 @@
 	"evidencePreservingReducer": false,
 	"evidencePreservingReducerProvider": "provider-id",
 	"evidencePreservingReducerModel": "model-id",
+	"evidencePreservingReducerOptions": {
+		"tools": ["bash", "powershell"],
+		"commandPresets": ["dotnet", "node", "python", "rust", "go", "jvm", "native", "script", "misc"],
+		"includeCommands": [],
+		"excludeCommands": [],
+		"minBytes": 4096,
+		"maxChars": 600000,
+		"maxOutputTokens": 2048,
+		"timeoutMs": 90000,
+		"maxEvidenceItems": 12,
+		"maxQuoteChars": 600,
+		"maxConcurrent": 3,
+		"redactSecrets": true,
+		"retentionDays": 7,
+		"journal": true,
+		"notify": true
+	},
 	"onlineContextCompact": false,
 	"cacheWriteReadRatio": 12.5
 }

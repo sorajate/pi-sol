@@ -16,7 +16,14 @@ const DEFAULT_CACHE_WRITE_READ_RATIO = 12.5;
 const DEFAULT_EPR_REDUCER_PROVIDER = ["openai", "codex"].join("-");
 const DEFAULT_EPR_REDUCER_MODEL = ["gpt-5.6", "luna"].join("-");
 const STRING_KEYS = ["evidencePreservingReducerModel", "evidencePreservingReducerProvider"];
-const CONFIG_KEYS = new Set(["version", ...FEATURE_KEYS, ...STRING_KEYS, "cacheWriteReadRatio"]);
+const REDUCER_OPTIONS_KEY = "evidencePreservingReducerOptions";
+const CONFIG_KEYS = new Set([
+	"version",
+	...FEATURE_KEYS,
+	...STRING_KEYS,
+	REDUCER_OPTIONS_KEY,
+	"cacheWriteReadRatio",
+]);
 
 function fail(message) {
 	throw new Error(message);
@@ -95,6 +102,7 @@ function validateConfig(value, requireAllEnabled) {
 		"evidencePreservingReducerProvider",
 		DEFAULT_EPR_REDUCER_PROVIDER,
 	);
+	effective.evidencePreservingReducerOptions = reducerOptionsValue(value);
 
 	return {
 		ok: true,
@@ -107,6 +115,42 @@ function stringConfigValue(value, key, defaultValue) {
 	const configured = Object.hasOwn(value, key) ? value[key] : defaultValue;
 	if (typeof configured !== "string" || configured.trim().length === 0) fail(`${key} must be a non-empty string`);
 	return configured.trim();
+}
+
+const REDUCER_OPTION_KEYS = new Set([
+	"reducerProvider",
+	"reducerModel",
+	"tools",
+	"commandPresets",
+	"includeCommands",
+	"excludeCommands",
+	"minBytes",
+	"maxChars",
+	"maxOutputTokens",
+	"timeoutMs",
+	"maxEvidenceItems",
+	"maxQuoteChars",
+	"maxConcurrent",
+	"redactSecrets",
+	"retentionDays",
+	"journal",
+	"notify",
+]);
+
+/**
+ * Shape check only. The extension validates ranges and regular expressions at
+ * load time and refuses to start on a bad value.
+ */
+function reducerOptionsValue(value) {
+	if (!Object.hasOwn(value, REDUCER_OPTIONS_KEY)) return {};
+	const configured = value[REDUCER_OPTIONS_KEY];
+	if (typeof configured !== "object" || configured === null || Array.isArray(configured)) {
+		fail(`${REDUCER_OPTIONS_KEY} must be a JSON object`);
+	}
+	for (const key of Object.keys(configured)) {
+		if (!REDUCER_OPTION_KEYS.has(key)) fail(`${REDUCER_OPTIONS_KEY}.${key} is not a known option`);
+	}
+	return configured;
 }
 
 try {
