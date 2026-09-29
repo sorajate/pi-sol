@@ -21,7 +21,8 @@
 	"scripts": {
 		"test": "vitest run",
 		"typecheck": "tsc --noEmit",
-		"check": "npm run typecheck && npm test && npm pack --dry-run"
+		"check:secrets": "node scripts/check-secrets.mjs",
+		"check": "npm run check:secrets && npm run typecheck && npm test && npm pack --dry-run"
 	},
 	"keywords": [
 		"pi-package",
